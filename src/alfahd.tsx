@@ -3,19 +3,12 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from 'firebase/firestore';
 
-// Polyfill keamanan untuk mencegah error "ReferenceError: tailwind is not defined" pada environment
+// Polyfill untuk window
 if (typeof window !== 'undefined') {
-  window.tailwind = window.tailwind || { config: {} };
+  (window as any).tailwind = (window as any).tailwind || { config: {} };
 }
 
-// ==========================================
-// CONFIGURATION & INITIALIZATION FIREBASE
-// ==========================================
-let app = null;
-let auth = null;
-let db = null;
-
-// Konfigurasi Default yang Aman untuk Vercel & Canvas Gemini
+// Konfigurasi Firebase Safe
 const defaultFirebaseConfig = {
   apiKey: "demo-key",
   authDomain: "demo.firebaseapp.com",
@@ -25,20 +18,24 @@ const defaultFirebaseConfig = {
   appId: "1:123456789:web:demo"
 };
 
+let app: any = null;
+let auth: any = null;
+let db: any = null;
+
 try {
-  const firebaseConfig = typeof __firebase_config !== 'undefined' 
-    ? JSON.parse(__firebase_config) 
+  const firebaseConfig = typeof (window as any).__firebase_config !== 'undefined' 
+    ? JSON.parse((window as any).__firebase_config) 
     : defaultFirebaseConfig;
 
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (e) {
-  console.warn("Firebase fallback initialized");
+  // Fallback silent
 }
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const apiKey = ""; // API Key disuntikkan secara otomatis oleh lingkungan runtime
+const appId = typeof (window as any).__app_id !== 'undefined' ? (window as any).__app_id : 'default-app-id';
+const apiKey = "";
 
 // Default Form State
 const initialFormState = {
@@ -227,7 +224,7 @@ const fetchWithRetry = async (url, options, retries = 5, delay = 1000) => {
 };
 
 // Parser Respons AI Kebal Gagal
-const parseGeminiResponse = (text) => {
+const parseGeminiResponse = (text: string) => {
   if (!text) {
     return {
       capaianPembelajaran: "",
@@ -236,12 +233,13 @@ const parseGeminiResponse = (text) => {
   }
 
   let cleanText = text.trim();
-  if (cleanText.startsWith("```json")) {
+  // Menggunakan string escaping agar Vite/Rollup tidak bingung
+  if (cleanText.startsWith('\`\`\`json')) {
     cleanText = cleanText.substring(7);
-  } else if (cleanText.startsWith("```")) {
+  } else if (cleanText.startsWith('\`\`\`')) {
     cleanText = cleanText.substring(3);
   }
-  if (cleanText.endsWith("```")) {
+  if (cleanText.endsWith('\`\`\`')) {
     cleanText = cleanText.substring(0, cleanText.length - 3);
   }
   cleanText = cleanText.trim();
@@ -249,7 +247,6 @@ const parseGeminiResponse = (text) => {
   try {
     return JSON.parse(cleanText);
   } catch (e) {
-    console.warn("Standard JSON parse failed, trying regex match fallback...", e);
     const firstBrace = cleanText.indexOf('{');
     const lastBrace = cleanText.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
@@ -257,7 +254,7 @@ const parseGeminiResponse = (text) => {
         const jsonSubstring = cleanText.substring(firstBrace, lastBrace + 1);
         return JSON.parse(jsonSubstring);
       } catch (innerError) {
-        console.error("Inner JSON parse failed too", innerError);
+        // Fallback
       }
     }
     
