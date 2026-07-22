@@ -15,11 +15,26 @@ let app = null;
 let auth = null;
 let db = null;
 
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-if (firebaseConfig) {
+// Konfigurasi Default yang Aman untuk Vercel & Canvas Gemini
+const defaultFirebaseConfig = {
+  apiKey: "demo-key",
+  authDomain: "demo.firebaseapp.com",
+  projectId: "demo-project",
+  storageBucket: "demo.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:demo"
+};
+
+try {
+  const firebaseConfig = typeof __firebase_config !== 'undefined' 
+    ? JSON.parse(__firebase_config) 
+    : defaultFirebaseConfig;
+
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+} catch (e) {
+  console.warn("Firebase fallback initialized");
 }
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
